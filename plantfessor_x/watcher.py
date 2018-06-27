@@ -75,7 +75,7 @@ def get_light_data():
 
 
 def main():
-    # setup logging, and initiate plantfessor_x_sheet
+    # setup logging, and initialize plantfessor_x_sheet
     setup_logging()
     plantfessor_x_sheet = None
 
