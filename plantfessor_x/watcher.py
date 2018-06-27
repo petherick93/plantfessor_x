@@ -4,17 +4,16 @@ import os
 import time
 
 import Adafruit_DHT
-import gspread
 import smbus
 
-from oauth2client.service_account import ServiceAccountCredentials
+import pygsheets
 
 
-# The DHT22 Sensor and GPIO pin #
+# The DHT22 Sensor and GPIO pin
 SENSOR = Adafruit_DHT.DHT22
 PIN = 4
 
-GDOCS_OAUTH_JSO = 'plantfessorx-auth.json'
+GDOCS_OAUTH_JSON = 'plantfessorx-auth.json'
 
 # Google Docs spreadsheet name.
 GDOCS_SPREADSHEET_NAME = 'plantfessor_x'
@@ -24,24 +23,22 @@ FREQUENCY_SECONDS = 1800
 
 
 def setup_logging():
-    path_dir = os.path.realpath(__file__)
-    log_name = datetime.now().strftime('plantfessor_x_watch_log_%d_%m_%Y.log')
-    logging.basicConfig(filename=os.path.join(path_dir, '../', 'logs', log_name), level=logging.DEBUG)
+    path_dir = os.path.dirname(__file__)
+    log_name = datetime.datetime.now().strftime('plantfessor_x_watch_log_%d_%m_%Y.log')
+    logging.basicConfig(filename=os.path.join(path_dir, '../', 'logs', log_name), level=logging.CRITICAL)
 
 
 def login_open_sheet(oauth_key_file, spreadsheet):
     """Connect to Google Docs spreadsheet and return the first worksheet."""
-    try:
-        scope = ['https://spreadsheets.google.com/feeds']
-        oauth_key_file_path = os.path.join(os.path.realpath(__file__), '../', 'auth', oauth_key_file)
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(oauth_key_file_path, scope)
-        gc = gspread.authorize(credentials)
-        worksheet = gc.open(spreadsheet).sheet1
-        return worksheet
 
-    except Exception as ex:
-        logging.error('Google sheet login failed with error:', ex)
-        return None
+    oauth_key_file_path = os.path.join(os.path.dirname(__file__), '../', 'auth', oauth_key_file)
+    gc = pygsheets.authorize(outh_file=oauth_key_file_path)
+
+    # Open spreadsheet and then workseet
+    sheet = gc.open(spreadsheet)
+    worksheet = sheet.sheet1
+
+    return worksheet
 
 
 def get_light_data():
@@ -84,36 +81,37 @@ def main():
         # grab our data file
         if plantfessor_x_sheet is None:
             logging.info('Logging in and Grabbing Plantfessor X Sheet')
-            plantfessor_x_sheet = login_open_sheet(GDOCS_OAUTH_JSO, GDOCS_SPREADSHEET_NAME)
-
+            plantfessor_x_sheet = login_open_sheet(GDOCS_OAUTH_JSON, GDOCS_SPREADSHEET_NAME)
+            
         # grab the temperature and humidity data
         logging.info('Grabbing Humidity and Temperature data')
-        humidity, temperature = Adafruit_DHT.read_retry(SENSOR, PIN)
+        humidity, temp = Adafruit_DHT.read_retry(SENSOR, PIN)
 
         # if none, wait 30 seconds and try again
-        if humidity is None and temperature is None:
+        if humidity is None and temp is None:
             # log and wait
             logging.warning('Failed to grab data, waiting 30 seconds')
             time.sleep(30)
 
             # try and grab the temperature and humidity data again
-            humidity, temperature = Adafruit_DHT.read_retry(SENSOR, PIN)
+            humidity, temp = Adafruit_DHT.read_retry(SENSOR, PIN)
 
         # grab the light data
         logging.info('Grabbing Light data')
-        full_spectrum_light, infrared_light, visible_light = get_light_data()
+        fs_light, ir_light, visible_light = get_light_data()
 
         # if none, wait 30 seconds and try again
-        if full_spectrum_light is None and infrared_light is None and visible_light is None:
+        if fs_light is None and ir_light is None and visible_light is None:
             logging.warning('Failed to grab data, waiting 30 seconds')
             time.sleep(30)
             # try and grab the light data again
-            full_spectrum_light, infrared_light, visible_light = get_light_data()
+            fs_light, ir_light, visible_light = get_light_data()
 
         # Append the data in the spreadsheet, including a timestamp
         try:
-            plantfessor_x_sheet.append_row(
-                (datetime.datetime.now(), temperature, humidity, full_spectrum_light, infrared_light, visible_light)
+            record_date = datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')
+            plantfessor_x_sheet.append_table(
+                values=[record_date, temp, humidity, fs_light, ir_light, visible_light]
             )
 
         except:
