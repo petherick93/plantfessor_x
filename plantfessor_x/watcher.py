@@ -26,14 +26,14 @@ FREQUENCY_SECONDS = 1800
 def setup_logging():
     path_dir = os.path.realpath(__file__)
     log_name = datetime.now().strftime('plantfessor_x_watch_log_%d_%m_%Y.log')
-    logging.basicConfig(filename=os.path.join(path_dir, 'logs', log_name), level=logging.DEBUG)
+    logging.basicConfig(filename=os.path.join(path_dir, '../', 'logs', log_name), level=logging.DEBUG)
 
 
 def login_open_sheet(oauth_key_file, spreadsheet):
     """Connect to Google Docs spreadsheet and return the first worksheet."""
     try:
         scope = ['https://spreadsheets.google.com/feeds']
-        oauth_key_file_path = os.path.join(os.path.realpath(__file__), 'auth', oauth_key_file)
+        oauth_key_file_path = os.path.join(os.path.realpath(__file__), '../', 'auth', oauth_key_file)
         credentials = ServiceAccountCredentials.from_json_keyfile_name(oauth_key_file_path, scope)
         gc = gspread.authorize(credentials)
         worksheet = gc.open(spreadsheet).sheet1
